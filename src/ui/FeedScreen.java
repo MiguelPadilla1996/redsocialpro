@@ -18,15 +18,16 @@ import java.util.Stack;
 
 public class FeedScreen extends JFrame {
 
-    private JTextArea postArea;
+    private JTextArea areaPublicaciones;
     private JButton tweetButton;
-    private JButton deleteButton;
-    private JButton logoutButton; // Botón de cierre de sesión
-    private JPanel feedPanel;
+    private JButton botonBorrar;
+    private JButton botonSalir; // Botón de cierre de sesión
+    private JPanel panelPublicaciones;
     private JScrollPane scrollPane;
-    private JPanel sidebarPanel;
+    private JPanel panelLateral;
     private Stack<JPanel> postsStack;
     private int userId;
+    
     
 
     public FeedScreen(int userId) {
@@ -40,36 +41,46 @@ public class FeedScreen extends JFrame {
 
         postsStack = new Stack<>();
 
-        // Layout principal
+        
         setLayout(new BorderLayout());
 
-        // Barra lateral
-        sidebarPanel = createSidebarPanel();
-        add(sidebarPanel, BorderLayout.WEST);
+        
+        panelLateral = crearPanelLateral();
+        add(panelLateral, BorderLayout.WEST);
 
-        // Panel principal
+        
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(Color.BLACK);
         add(mainPanel, BorderLayout.CENTER);
 
-        // Área de publicación
-        JPanel postPanel = createPostPanel();
+        
+        JPanel postPanel = crearPanelPublicaciones();
         mainPanel.add(postPanel, BorderLayout.NORTH);
 
-        // Panel de publicaciones con scroll
-        feedPanel = new JPanel();
-        feedPanel.setLayout(new BoxLayout(feedPanel, BoxLayout.Y_AXIS));
-        feedPanel.setBackground(Color.BLACK);
+        
+        panelPublicaciones = new JPanel();
+        panelPublicaciones.setLayout(new BoxLayout(panelPublicaciones, BoxLayout.Y_AXIS));
+        panelPublicaciones.setBackground(Color.BLACK);
 
-        scrollPane = new JScrollPane(feedPanel);
+        scrollPane = new JScrollPane(panelPublicaciones);
         scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         scrollPane.getVerticalScrollBar().setUI(new CustomScrollBarUI());
         mainPanel.add(scrollPane, BorderLayout.CENTER);
-        loadPostsFromDatabase();
+        cargarPublicaciones();
+        
+        Timer timer = new Timer(50000, new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            actualizarPublicacionesYComentarios();
+        }
+    });
+    timer.start();
+        
+        
         setVisible(true);
     }
 
-    private JPanel createSidebarPanel() {
+    private JPanel crearPanelLateral() {
         JPanel sidebar = new JPanel();
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
         sidebar.setBackground(Color.BLACK);
@@ -87,37 +98,37 @@ public class FeedScreen extends JFrame {
         }
 
         // Botón de cierre de sesión
-        logoutButton = new JButton("Cerrar Sesión");
-        logoutButton.setForeground(Color.WHITE);
-        logoutButton.setBackground(Color.BLACK);
-        logoutButton.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        logoutButton.setFocusPainted(false);
-        logoutButton.addActionListener(new ActionListener() {
+        botonSalir = new JButton("Cerrar Sesión");
+        botonSalir.setForeground(Color.WHITE);
+        botonSalir.setBackground(Color.BLACK);
+        botonSalir.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        botonSalir.setFocusPainted(false);
+        botonSalir.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 logout();
             }
         });
         sidebar.add(Box.createVerticalGlue()); // Empuja el botón hacia abajo
-        sidebar.add(logoutButton);
+        sidebar.add(botonSalir);
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
 
         return sidebar;
     }
 
-    private JPanel createPostPanel() {
+    private JPanel crearPanelPublicaciones() {
         JPanel postPanel = new JPanel(new BorderLayout());
         postPanel.setBackground(Color.BLACK);
         postPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        postArea = new JTextArea("¿Qué está pasando?!");
-        postArea.setLineWrap(true);
-        postArea.setWrapStyleWord(true);
-        postArea.setBackground(Color.DARK_GRAY);
-        postArea.setForeground(Color.WHITE);
-        postArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        postArea.setPreferredSize(new Dimension(getWidth(), 100));
-        postArea.setDocument(new JTextFieldLimit(300));
+        areaPublicaciones = new JTextArea("¿Qué está pasando?!");
+        areaPublicaciones.setLineWrap(true);
+        areaPublicaciones.setWrapStyleWord(true);
+        areaPublicaciones.setBackground(Color.DARK_GRAY);
+        areaPublicaciones.setForeground(Color.WHITE);
+        areaPublicaciones.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        areaPublicaciones.setPreferredSize(new Dimension(getWidth(), 100));
+        areaPublicaciones.setDocument(new JTextFieldLimit(300));
 
         tweetButton = new JButton("Postear");
         tweetButton.setBackground(Color.BLUE);
@@ -126,11 +137,11 @@ public class FeedScreen extends JFrame {
         tweetButton.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         tweetButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String text = postArea.getText();
+                String text = areaPublicaciones.getText();
                 if (!text.trim().isEmpty()) {
-                    if (addPostToDatabase(userId, text)) {
+                    if (guardarPublicacion(userId, text)) {
                         addPost("Usuario", text); // Puedes cambiar "Usuario" por el nombre del usuario si tienes esa información
-                        postArea.setText("");
+                        areaPublicaciones.setText("");
                     } else {
                         JOptionPane.showMessageDialog(FeedScreen.this, "Error al guardar la publicación.", "Error", JOptionPane.ERROR_MESSAGE);
                     }
@@ -138,35 +149,14 @@ public class FeedScreen extends JFrame {
             }
         });
         
-        JButton trashButton = new JButton("\uD83D\uDEAE"); // Emoji de bote de basura
-        trashButton.setBackground(Color.BLACK);
-        trashButton.setForeground(Color.WHITE);
-        trashButton.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        trashButton.setFocusPainted(false);
-        trashButton.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                // Obtener el panel de publicación padre del botón
-                JPanel parentPanel = (JPanel) trashButton.getParent();
-                // Obtener el índice del panel de publicación dentro de feedPanel
-                int index = feedPanel.getComponentZOrder(parentPanel);
-                // Obtener el componente en la posición index de postsStack
-                JPanel postToRemove = postsStack.get(index);
-                // Eliminar la publicación de la base de datos
-                removePostFromDatabase(postToRemove);
-                // Remover el panel de publicación de la interfaz de usuario
-                feedPanel.remove(postToRemove);
-                // Revalidar y repintar el feedPanel
-                feedPanel.revalidate();
-                feedPanel.repaint();
-            }
-        });
+        
 
-        deleteButton = new JButton("Eliminar Último Post");
-        deleteButton.setBackground(Color.RED);
-        deleteButton.setForeground(Color.WHITE);
-        deleteButton.setFocusPainted(false);
-        deleteButton.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-        deleteButton.addActionListener(new ActionListener() {
+        botonBorrar = new JButton("Eliminar Último Post");
+        botonBorrar.setBackground(Color.RED);
+        botonBorrar.setForeground(Color.WHITE);
+        botonBorrar.setFocusPainted(false);
+        botonBorrar.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        botonBorrar.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 removeLastPost();
             }
@@ -174,83 +164,44 @@ public class FeedScreen extends JFrame {
 
         JPanel postInputPanel = new JPanel(new BorderLayout());
         postInputPanel.setBackground(Color.BLACK);
-        postInputPanel.add(postArea, BorderLayout.CENTER);
+        postInputPanel.add(areaPublicaciones, BorderLayout.CENTER);
 
         JPanel buttonsPanel = new JPanel(new GridLayout(1, 2, 10, 0));
         buttonsPanel.setBackground(Color.BLACK);
         buttonsPanel.add(tweetButton);
-        buttonsPanel.add(trashButton);
-        buttonsPanel.add(deleteButton);
+        
+        buttonsPanel.add(botonBorrar);
 
         postPanel.add(postInputPanel, BorderLayout.CENTER);
         postPanel.add(buttonsPanel, BorderLayout.SOUTH);
         tweetButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String text = postArea.getText();
+                String text = areaPublicaciones.getText();
                 if (!text.trim().isEmpty()) {
-                    if (addPostToDatabase(userId, text)) {
-                        String username = getUsernameFromDatabase(userId); // Obtener el nombre del usuario
+                    if (guardarPublicacion(userId, text)) {
+                        String username = traerNombreDeLaBaseDeDatos(userId); // Obtener el nombre del usuario
                         addPost(username, text); // Usar el nombre del usuario
-                        postArea.setText("");
+                        areaPublicaciones.setText("");
                     } else {
                         JOptionPane.showMessageDialog(FeedScreen.this, "Error al guardar la publicación.", "Error", JOptionPane.ERROR_MESSAGE);
                     }
                 }
             }
         });
-        trashButton.addActionListener(new ActionListener() {
-    public void actionPerformed(ActionEvent e) {
-        // Obtener el panel de publicación padre del botón
-        JPanel parentPanel = (JPanel) trashButton.getParent();
-        // Obtener el índice del panel de publicación dentro de feedPanel
-        int index = feedPanel.getComponentZOrder(parentPanel);
-        // Obtener el componente en la posición index de postsStack
-        JPanel postToRemove = postsStack.get(index);
-        // Obtener el contenido de la publicación
-        String content = ((JLabel) postToRemove.getComponent(0)).getText();
-        // Obtener el ID de la publicación
-        int postId = obtenerIdDeLaPublicacion(content);
-        // Eliminar la publicación por su ID
-        removePostById(postId);
-    }
-});
+   
 
 
         return postPanel;
     }
 
-    private void removePostFromDatabase(JPanel postToRemove) {
-        // Obtener el índice del panel de publicación dentro de feedPanel
-        int index = feedPanel.getComponentZOrder(postToRemove);
-        // Obtener el componente en la posición index de postsStack
-        JPanel postPanel = postsStack.get(index);
-
-        // Obtener el contenido de la publicación
-        String content = ((JLabel) postPanel.getComponent(0)).getText(); // Suponiendo que el texto está en el primer componente del panel
-
-        // Realizar cualquier lógica adicional, como obtener el ID de la publicación
-        int postId = obtenerIdDeLaPublicacion(content); // Aquí debes implementar la lógica para obtener el ID de la publicación
-
-        // Eliminar la publicación de la base de datos
-        if (eliminarPublicacionDeLaBaseDeDatos(postId)) {
-            // Si la eliminación es exitosa, también eliminamos la publicación de la interfaz de usuario
-            feedPanel.remove(postPanel);
-            postsStack.remove(postPanel);
-            feedPanel.revalidate();
-            feedPanel.repaint();
-        } else {
-            // Manejar el caso en el que la eliminación de la publicación de la base de datos falle
-            JOptionPane.showMessageDialog(FeedScreen.this, "Error al eliminar la publicación de la base de datos.", "Error", JOptionPane.ERROR_MESSAGE);
-        }
-    }
+    
 
 // Método para obtener el ID de la publicación a partir de su contenido
-    private int obtenerIdDeLaPublicacion(String content) {
-        
-        String query = "SELECT id FROM red_social.publicaciones WHERE contenido = ?";
+  private int obtenerIdDeLaPublicacion(int userId) {
+    String query = "SELECT id FROM publicaciones WHERE usuario_id = ?";
     try (Connection connection = DatabaseConnection.getConnection();
          PreparedStatement statement = connection.prepareStatement(query)) {
-        statement.setString(1, content);
+        statement.setInt( 1, userId);
         ResultSet resultSet = statement.executeQuery();
         if (resultSet.next()) {
             return resultSet.getInt("id");
@@ -259,7 +210,29 @@ public class FeedScreen extends JFrame {
         e.printStackTrace();
     }
     return -1; // Retorna -1 si no se encuentra el ID
+}
+private void actualizarPublicacionesYComentarios() {
+    panelPublicaciones.removeAll(); // Limpia el panel de publicaciones antes de cargar nuevas
+    postsStack.clear(); // Limpia la pila de publicaciones
+
+    cargarPublicaciones(); // Carga todas las publicaciones
+
+    // Para cada publicación en el panel, cargar sus comentarios
+    for (Component component : panelPublicaciones.getComponents()) {
+        if (component instanceof JPanel) {
+            JPanel postPanel = (JPanel) component;
+            JLabel postLabel = (JLabel) postPanel.getComponent(0);
+            String content = postLabel.getText();
+            int postId = obtenerIdDeLaPublicacion(userId); // Obtén el ID de la publicación
+            JPanel commentPanel = (JPanel) postPanel.getComponent(2);
+            cargarComentarios(postId, commentPanel);
+        }
     }
+
+    panelPublicaciones.revalidate();
+    panelPublicaciones.repaint();
+}
+
 
 // Método para eliminar la publicación de la base de datos
     private boolean eliminarPublicacionDeLaBaseDeDatos(int postId) {
@@ -280,12 +253,12 @@ public class FeedScreen extends JFrame {
         for (int i = 0; i < postsStack.size(); i++) {
             JPanel postPanel = postsStack.get(i);
             String content = ((JLabel) postPanel.getComponent(0)).getText();
-            int id = obtenerIdDeLaPublicacion(content);
+            int id = obtenerIdDeLaPublicacion(userId);
             if (id == postId) {
-                feedPanel.remove(postPanel);
+                panelPublicaciones.remove(postPanel);
                 postsStack.remove(postPanel);
-                feedPanel.revalidate();
-                feedPanel.repaint();
+                panelPublicaciones.revalidate();
+                panelPublicaciones.repaint();
                 return; // Terminar el bucle una vez que se haya eliminado la publicación
             }
         }
@@ -295,8 +268,10 @@ public class FeedScreen extends JFrame {
     }
 }
 
-
- private void addPost(String user, String text) {
+   
+    
+    
+private void addPost(String user, String text) {
     JPanel postPanel = new JPanel(new BorderLayout());
     postPanel.setBackground(Color.DARK_GRAY);
     postPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -315,7 +290,7 @@ public class FeedScreen extends JFrame {
     commentPanel.add(separator);
 
     // Área de texto para escribir comentarios
-    JTextArea commentArea = new JTextArea("Escribe un comentario...");
+    JTextArea commentArea = new JTextArea("");
     commentArea.setLineWrap(true);
     commentArea.setWrapStyleWord(true);
     commentArea.setBackground(Color.LIGHT_GRAY);
@@ -330,22 +305,24 @@ public class FeedScreen extends JFrame {
     commentButton.setFocusPainted(false);
     commentButton.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
     commentButton.addActionListener(new ActionListener() {
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        String commentText = commentArea.getText();
-        if (!commentText.trim().isEmpty()) {
-            JPanel postPanel = (JPanel) commentButton.getParent().getParent(); // Obtener el panel de la publicación actual
-            JLabel postLabel = (JLabel) postPanel.getComponent(0); // Obtener la etiqueta de la publicación
-            String content = postLabel.getText(); // Obtener el contenido de la publicación
-            int postId = obtenerIdDeLaPublicacion(content); // Obtener el ID de la publicación
-             String username = getUsernameFromDatabase(userId);
-            addComment(commentPanel, username, commentText); // Cambia "Usuario" por el nombre del usuario si lo tienes
-            commentArea.setText("");
-            addCommentToDatabase(postId, userId, commentText); // Agrega los parámetros postId y userId según corresponda
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            String commentText = commentArea.getText();
+            if (!commentText.trim().isEmpty()) {
+                JPanel postPanel = (JPanel) commentButton.getParent().getParent(); // Obtener el panel de la publicación actual
+                JLabel postLabel = (JLabel) postPanel.getComponent(0); // Obtener la etiqueta de la publicación
+                String content = postLabel.getText(); // Obtener el contenido de la publicación
+                int postId = obtenerIdDeLaPublicacion(userId);
+                
+                String username = traerNombreDeLaBaseDeDatos(userId);
+                addComment(commentPanel, username, commentText); // Cambia "Usuario" por el nombre del usuario si lo tienes
+                commentArea.setText("");
+                guardarComentario(postId, userId, commentText); 
+                
+            }
         }
-    }
-});
-
+    });
+    
     JPanel commentInputPanel = new JPanel(new BorderLayout());
     commentInputPanel.setBackground(Color.DARK_GRAY);
     commentInputPanel.add(commentArea, BorderLayout.CENTER);
@@ -355,11 +332,18 @@ public class FeedScreen extends JFrame {
     postPanel.add(commentPanel, BorderLayout.SOUTH);
     postPanel.add(commentInputPanel, BorderLayout.NORTH);
 
-    feedPanel.add(postPanel);
+    panelPublicaciones.add(postPanel);
     postsStack.push(postPanel);
-    feedPanel.revalidate();
-    feedPanel.repaint();
+    panelPublicaciones.revalidate();
+    panelPublicaciones.repaint();
+
+    // Cargar comentarios para esta publicación
+    int postId = obtenerIdDeLaPublicacion(userId);
+    cargarComentarios(postId, commentPanel);
 }
+
+  
+
    private void addComment(JPanel commentPanel, String user, String text) {
     JLabel commentLabel = new JLabel("<html>" + user + ": " + text.replaceAll("\n", "<br>") + "</html>");
     commentLabel.setForeground(Color.WHITE);
@@ -367,13 +351,15 @@ public class FeedScreen extends JFrame {
     commentPanel.revalidate();
     commentPanel.repaint();
 }
-    private boolean addCommentToDatabase(int postId, int userId, String content) {
+    private boolean guardarComentario(int postId, int userId, String content) {
         String query = "INSERT INTO comentarios (publicacion_id, usuario_id, contenido, fecha_comentario) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
         try (Connection connection = DatabaseConnection.getConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setInt(1, postId);
             statement.setInt(2, userId);
             statement.setString(3, content);
             statement.executeUpdate();
+            
+           
             return true;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -382,7 +368,7 @@ public class FeedScreen extends JFrame {
     }
 
 
-    private boolean addPostToDatabase(int userId, String content) {
+    private boolean guardarPublicacion(int userId, String content) {
         String query = "INSERT INTO publicaciones (usuario_id, contenido, fecha_publicacion) VALUES (?, ?, CURRENT_TIMESTAMP)";
         try (Connection connection = DatabaseConnection.getConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setInt(1, userId);
@@ -395,7 +381,7 @@ public class FeedScreen extends JFrame {
         }
     }
 
-    private String getUsernameFromDatabase(int userId) {
+    private String traerNombreDeLaBaseDeDatos(int userId) {
         String query = "SELECT nombre FROM usuarios WHERE id = ?";
         try (Connection connection = DatabaseConnection.getConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setInt(1, userId);
@@ -408,7 +394,7 @@ public class FeedScreen extends JFrame {
         }
         return "Usuario";
     }
-private void loadPostsFromDatabase() {
+private void cargarPublicaciones() {
     String query = "SELECT u.nombre, p.contenido, p.id AS publicacion_id "
             + "FROM publicaciones p "
             + "JOIN usuarios u ON p.usuario_id = u.id "
@@ -419,14 +405,15 @@ private void loadPostsFromDatabase() {
             String content = resultSet.getString("contenido");
             int postId = resultSet.getInt("publicacion_id");
             addPost(username, content);
-            loadCommentsFromDatabase(postId);
+            
+               
         }
     } catch (SQLException e) {
         e.printStackTrace();
     }
 }
 
-private void loadCommentsFromDatabase(int postId) {
+private void cargarComentarios(int postId, JPanel commentPanel) {
     String query = "SELECT u.nombre, c.contenido "
             + "FROM comentarios c "
             + "JOIN usuarios u ON c.usuario_id = u.id "
@@ -438,7 +425,7 @@ private void loadCommentsFromDatabase(int postId) {
         while (resultSet.next()) {
             String username = resultSet.getString("nombre");
             String content = resultSet.getString("contenido");
-            addComment(postsStack.peek(), username, content); // Añadir comentario al post actual
+            addComment(commentPanel, username, content); // Añadir comentario al panel de comentarios de la publicación
         }
     } catch (SQLException e) {
         e.printStackTrace();
@@ -446,13 +433,12 @@ private void loadCommentsFromDatabase(int postId) {
 }
 
 
-
     private void removeLastPost() {
         if (!postsStack.isEmpty()) {
             JPanel lastPost = postsStack.pop();
-            feedPanel.remove(lastPost);
-            feedPanel.revalidate();
-            feedPanel.repaint();
+            panelPublicaciones.remove(lastPost);
+            panelPublicaciones.revalidate();
+            panelPublicaciones.repaint();
         }
     }
 
