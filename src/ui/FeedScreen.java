@@ -21,7 +21,7 @@ public class FeedScreen extends JFrame {
     private JTextArea areaPublicaciones;
     private JButton tweetButton;
     private JButton botonBorrar;
-    private JButton botonSalir; // Botón de cierre de sesión
+    private JButton botonSalir; 
     private JPanel panelPublicaciones;
     private JScrollPane scrollPane;
     private JPanel panelLateral;
@@ -68,13 +68,13 @@ public class FeedScreen extends JFrame {
         mainPanel.add(scrollPane, BorderLayout.CENTER);
         cargarPublicaciones();
         
-        Timer timer = new Timer(50000, new ActionListener() {
+     /*   Timer timer = new Timer(50000, new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
             actualizarPublicacionesYComentarios();
         }
     });
-    timer.start();
+    timer.start();*/
         
         
         setVisible(true);
@@ -97,7 +97,7 @@ public class FeedScreen extends JFrame {
             sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
         }
 
-        // Botón de cierre de sesión
+        
         botonSalir = new JButton("Cerrar Sesión");
         botonSalir.setForeground(Color.WHITE);
         botonSalir.setBackground(Color.BLACK);
@@ -109,7 +109,7 @@ public class FeedScreen extends JFrame {
                 logout();
             }
         });
-        sidebar.add(Box.createVerticalGlue()); // Empuja el botón hacia abajo
+        sidebar.add(Box.createVerticalGlue()); 
         sidebar.add(botonSalir);
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
 
@@ -140,7 +140,7 @@ public class FeedScreen extends JFrame {
                 String text = areaPublicaciones.getText();
                 if (!text.trim().isEmpty()) {
                     if (guardarPublicacion(userId, text)) {
-                        addPost("Usuario", text); // Puedes cambiar "Usuario" por el nombre del usuario si tienes esa información
+                        addPost("Usuario", text); 
                         areaPublicaciones.setText("");
                     } else {
                         JOptionPane.showMessageDialog(FeedScreen.this, "Error al guardar la publicación.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -179,8 +179,8 @@ public class FeedScreen extends JFrame {
                 String text = areaPublicaciones.getText();
                 if (!text.trim().isEmpty()) {
                     if (guardarPublicacion(userId, text)) {
-                        String username = traerNombreDeLaBaseDeDatos(userId); // Obtener el nombre del usuario
-                        addPost(username, text); // Usar el nombre del usuario
+                        String username = traerNombreDeLaBaseDeDatos(userId); 
+                        addPost(username, text); 
                         areaPublicaciones.setText("");
                     } else {
                         JOptionPane.showMessageDialog(FeedScreen.this, "Error al guardar la publicación.", "Error", JOptionPane.ERROR_MESSAGE);
@@ -196,7 +196,6 @@ public class FeedScreen extends JFrame {
 
     
 
-// Método para obtener el ID de la publicación a partir de su contenido
   private int obtenerIdDeLaPublicacion(int userId) {
     String query = "SELECT id FROM publicaciones WHERE usuario_id = ?";
     try (Connection connection = DatabaseConnection.getConnection();
@@ -212,18 +211,18 @@ public class FeedScreen extends JFrame {
     return -1; // Retorna -1 si no se encuentra el ID
 }
 private void actualizarPublicacionesYComentarios() {
-    panelPublicaciones.removeAll(); // Limpia el panel de publicaciones antes de cargar nuevas
-    postsStack.clear(); // Limpia la pila de publicaciones
+    panelPublicaciones.removeAll(); 
+    postsStack.clear(); 
 
-    cargarPublicaciones(); // Carga todas las publicaciones
+    cargarPublicaciones();
 
-    // Para cada publicación en el panel, cargar sus comentarios
+    
     for (Component component : panelPublicaciones.getComponents()) {
         if (component instanceof JPanel) {
             JPanel postPanel = (JPanel) component;
             JLabel postLabel = (JLabel) postPanel.getComponent(0);
             String content = postLabel.getText();
-            int postId = obtenerIdDeLaPublicacion(userId); // Obtén el ID de la publicación
+            int postId = obtenerIdDeLaPublicacion(userId); 
             JPanel commentPanel = (JPanel) postPanel.getComponent(2);
             cargarComentarios(postId, commentPanel);
         }
@@ -234,22 +233,21 @@ private void actualizarPublicacionesYComentarios() {
 }
 
 
-// Método para eliminar la publicación de la base de datos
     private boolean eliminarPublicacionDeLaBaseDeDatos(int postId) {
         String query = "DELETE FROM publicaciones WHERE id = ?";
         try (Connection connection = DatabaseConnection.getConnection(); PreparedStatement statement = connection.prepareStatement(query)) {
             statement.setInt(1, postId);
             int rowsAffected = statement.executeUpdate();
-            return rowsAffected > 0; // Devuelve true si se eliminó al menos una fila
+            return rowsAffected > 0; 
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
     private void removePostById(int postId) {
-    // Eliminar la publicación de la base de datos
+
     if (eliminarPublicacionDeLaBaseDeDatos(postId)) {
-        // Buscar el panel de publicación correspondiente al postId y eliminarlo de la interfaz de usuario
+
         for (int i = 0; i < postsStack.size(); i++) {
             JPanel postPanel = postsStack.get(i);
             String content = ((JLabel) postPanel.getComponent(0)).getText();
@@ -259,11 +257,11 @@ private void actualizarPublicacionesYComentarios() {
                 postsStack.remove(postPanel);
                 panelPublicaciones.revalidate();
                 panelPublicaciones.repaint();
-                return; // Terminar el bucle una vez que se haya eliminado la publicación
+                return; 
             }
         }
     } else {
-        // Manejar el caso en el que la eliminación de la publicación de la base de datos falle
+
         JOptionPane.showMessageDialog(FeedScreen.this, "Error al eliminar la publicación de la base de datos.", "Error", JOptionPane.ERROR_MESSAGE);
     }
 }
